@@ -1,0 +1,23 @@
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+      args:
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:?NEXT_PUBLIC_API_BASE_URL is required}
+        NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:?NEXT_PUBLIC_SITE_URL is required}
+        NEXT_PUBLIC_PAYMENT_METHODS: ${NEXT_PUBLIC_PAYMENT_METHODS:-visa,mastercard}
+        PORT: ${WEB_PORT:-3000}
+    image: vinblick-web:latest
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: ${WEB_PORT:-3000}
+    ports:
+      - '127.0.0.1:${WEB_PORT:-3000}:${WEB_PORT:-3000}'
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '3'
