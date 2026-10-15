@@ -1,0 +1,95 @@
+name: Deploy Web
+ 
+# Manual deploy: Actions → "Deploy Web" → Run workflow → choose the branch
+# in "Use workflow from" (e.g. a feature branch for testing, later main).
+#
+# The server does NOT need access to GitHub (deploy keys are disabled in the
+# VinBlick org): the runner checks out the chosen branch and syncs the files
+# to the server with rsync over SSH, then the image is built there.
+on:
+  workflow_dispatch:
+    inputs:
+      run_checks:
+        description: 'Run lint / typecheck / tests before deploying'
+        type: boolean
+        default: true
+ 
+# never run two deploys at the same time
+concurrency:
+  group: deploy-web
+  cancel-in-progress: false
+ 
+env:
+  APP_DIR: /opt/vin-check/web
+ 
+jobs:
+  checks:
+    if: ${{ inputs.run_checks }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+ 
+  deploy:
+    needs: checks
+    # deploy also when checks were skipped on purpose, but never after a failure
+    if: ${{ !failure() && !cancelled() }}
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+    steps:
+      - uses: actions/checkout@v4
+ 
+      - name: Set up SSH
+        env:
+          SSH_KEY: ${{ secrets.HETZNER_SSH_KEY }}
+          SSH_HOST: ${{ secrets.HETZNER_HOST }}
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$SSH_HOST" >> ~/.ssh/known_hosts
+ 
+      - name: Sync ${{ github.ref_name }} to server
+        env:
+          SSH_HOST: ${{ secrets.HETZNER_HOST }}
+          SSH_USER: ${{ secrets.HETZNER_SSH_USER }}
+        run: |
+          echo "${GITHUB_REF_NAME}@${GITHUB_SHA::7}" > REVISION
+          ssh -i ~/.ssh/deploy_key "$SSH_USER@$SSH_HOST" "mkdir -p '$APP_DIR'"
+          # .env lives only on the server and is never overwritten or deleted
+          rsync -az --delete \
+            --exclude '.git' --exclude 'node_modules' --exclude '.next' \
+            --exclude '.env' --exclude '.env.*' \
+            -e "ssh -i ~/.ssh/deploy_key" \
+            ./ "$SSH_USER@$SSH_HOST:$APP_DIR/"
+ 
+      - name: Build and start
+        env:
+          SSH_HOST: ${{ secrets.HETZNER_HOST }}
+          SSH_USER: ${{ secrets.HETZNER_SSH_USER }}
+        run: |
+          ssh -i ~/.ssh/deploy_key "$SSH_USER@$SSH_HOST" APP_DIR="$APP_DIR" 'bash -s' <<'REMOTE'
+          set -euo pipefail
+          cd "$APP_DIR"
+          test -f .env || { echo "Missing $APP_DIR/.env"; exit 1; }
+          echo "Deploying $(cat REVISION)"
+          docker compose -f docker-compose.prod.yml build --pull
+          docker compose -f docker-compose.prod.yml up -d --remove-orphans
+          status=starting
+          for i in $(seq 1 30); do
+            status=$(docker inspect -f '{{.State.Health.Status}}' "$(docker compose -f docker-compose.prod.yml ps -q web)")
+            [ "$status" = "healthy" ] && break
+            sleep 3
+          done
+          echo "Health: $status"
+          [ "$status" = "healthy" ]
+          docker image prune -f
+          REMOTE
