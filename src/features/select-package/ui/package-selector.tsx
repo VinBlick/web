@@ -2,7 +2,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
-import { Check, LoaderCircle } from "lucide-react";
+import { Check, Clock, LoaderCircle } from "lucide-react";
 import { useVinDraft, normalizeVin } from "@/entities/vehicle";
 import {
   usePackages,
@@ -64,6 +64,11 @@ export function PackageSelector({
   const found = new Set(
     check?.categories.filter((c) => c.found).map((c) => c.category) ?? [],
   );
+  const afterPurchase = new Set(
+    check?.categories
+      .filter((c) => !c.found && c.status === "unknown")
+      .map((c) => c.category) ?? [],
+  );
 
   return (
     <>
@@ -114,12 +119,27 @@ export function PackageSelector({
                 <ul className="mt-4 space-y-1.5 text-sm">
                   {item.categories.map((c) => (
                     <li key={c} className="flex items-start gap-2">
-                      <Check
-                        size={15}
-                        className={`mt-0.5 shrink-0 ${found.has(c) ? "text-green-700" : "text-brand"}`}
-                        aria-hidden
-                      />
-                      {CATEGORY_LABELS[c] ?? c}
+                      {afterPurchase.has(c) ? (
+                        <Clock
+                          size={15}
+                          className="mt-0.5 shrink-0 text-muted"
+                          aria-hidden
+                        />
+                      ) : (
+                        <Check
+                          size={15}
+                          className={`mt-0.5 shrink-0 ${found.has(c) ? "text-green-700" : "text-brand"}`}
+                          aria-hidden
+                        />
+                      )}
+                      <span>
+                        {CATEGORY_LABELS[c] ?? c}
+                        {afterPurchase.has(c) ? (
+                          <span className="block text-xs text-muted">
+                            wird nach dem Kauf abgefragt
+                          </span>
+                        ) : null}
+                      </span>
                     </li>
                   ))}
                   {item.features
