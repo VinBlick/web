@@ -13,4 +13,6 @@ export type {
   ShareLink,
   Severity,
   Finding,
+  ClaimKind,
+  AnalysisStatus,
 } from "./model/types";

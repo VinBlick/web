@@ -188,6 +188,17 @@ export function OrderStatus({
         </ol>
       ) : null}
 
+      {order.progress.steps.some(
+        (s) => s.step === "FETCH" && s.status === "running",
+      ) ? (
+        <p className="text-xs text-muted">
+          Einige Quellen – z. B. die Servicehistorie des Herstellers – werden im
+          Hintergrund vorbereitet. Das dauert meist nur wenige Minuten. Sie
+          können die Seite schließen; wir senden Ihnen eine E-Mail, sobald der
+          Report fertig ist.
+        </p>
+      ) : null}
+
       {order.status === "failed" ? (
         <p className="rounded bg-amber-50 p-3 text-sm text-amber-900">
           Bei der Erstellung ist eine Verzögerung aufgetreten. Unser Team ist

@@ -4,9 +4,18 @@ export type { CategoryKey };
 export type CheckCategory = {
   category: CategoryKey;
   found: boolean;
+  /**
+   * unknown = a source without free availability check (e.g. manufacturer
+   * service history) covers it — the data is requested after purchase
+   */
+  status?: "found" | "not_found" | "unknown";
   count: number | null;
   label: string;
 };
+
+/** categories that can only be checked after purchase */
+export const isAfterPurchase = (c: CheckCategory) =>
+  !c.found && c.status === "unknown";
 
 export type VinCheck = {
   id: string;

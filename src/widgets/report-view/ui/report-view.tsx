@@ -34,6 +34,35 @@ function SeverityBadge({ severity }: { severity: Severity }) {
   );
 }
 
+const NO_ANALYSIS_TEXT: Partial<Record<string, string>> = {
+  unavailable:
+    "Die KI-Auswertung ist vorübergehend nicht verfügbar. Alle Daten der Quellen sind vollständig enthalten – die Auswertung wird automatisch nachgereicht. Laden Sie die Seite später neu.",
+  budget_exceeded:
+    "Die KI-Auswertung ist derzeit nicht verfügbar. Alle Daten der Quellen sind vollständig enthalten.",
+  disabled:
+    "Dieser Report enthält keine KI-Auswertung. Alle Daten der Quellen sind vollständig enthalten.",
+};
+
+/** fact vs. assumption, so buyers see what is stated and what is interpreted */
+function KindBadge({ kind }: { kind?: "FACT" | "ASSUMPTION" }) {
+  if (!kind) return null;
+  return kind === "ASSUMPTION" ? (
+    <span
+      className="inline-block rounded border border-amber-200 bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-900"
+      title="Eine Deutung der Daten, kein feststehender Fakt"
+    >
+      Annahme
+    </span>
+  ) : (
+    <span
+      className="inline-block rounded border border-line bg-surface px-2 py-0.5 text-xs font-semibold text-brand"
+      title="Steht so in den Daten der Quellen"
+    >
+      Fakt
+    </span>
+  );
+}
+
 function Card({
   title,
   children,
@@ -215,7 +244,8 @@ export function ReportView({
                     <span>
                       {r.title}{" "}
                       <span className="text-xs text-muted">
-                        ({SEVERITY_LABELS[r.severity]})
+                        ({SEVERITY_LABELS[r.severity]}
+                        {r.kind === "ASSUMPTION" ? ", Annahme" : ""})
                       </span>
                     </span>
                   </li>
@@ -233,6 +263,13 @@ export function ReportView({
               ))}
             </ul>
           ) : null}
+        </Card>
+      ) : report.analysisStatus && NO_ANALYSIS_TEXT[report.analysisStatus] ? (
+        <Card title="Zusammenfassung (KI)">
+          <p className="flex items-start gap-2 text-muted">
+            <Info size={18} className="mt-0.5 shrink-0" aria-hidden />
+            {NO_ANALYSIS_TEXT[report.analysisStatus]}
+          </p>
         </Card>
       ) : null}
 
@@ -262,10 +299,16 @@ export function ReportView({
                 <div className="flex flex-wrap items-center gap-2">
                   <strong>{f.title}</strong>
                   <SeverityBadge severity={f.severity} />
+                  <KindBadge kind={f.kind} />
                 </div>
                 <p className="mt-1 text-sm leading-relaxed text-muted">
                   {f.explanation}
                 </p>
+                {f.basis ? (
+                  <p className="mt-1 text-xs text-muted">
+                    <span className="font-semibold">Grundlage:</span> {f.basis}
+                  </p>
+                ) : null}
                 <p className="mt-1 text-xs text-muted">
                   Belege:{" "}
                   {f.evidence.map((e, j) => (

@@ -8,11 +8,17 @@ import {
   CircleCheck,
   CircleMinus,
   Info,
+  Clock,
 } from "lucide-react";
 import { Button } from "@/shared/ui/button";
 import { formatDate } from "@/shared/lib/format";
 import { normalizeVin, validateVin, useVinDraft } from "@/entities/vehicle";
-import { runVinCheck, checkQueryKey, type VinCheck } from "@/entities/check";
+import {
+  runVinCheck,
+  checkQueryKey,
+  isAfterPurchase,
+  type VinCheck,
+} from "@/entities/check";
 
 export function VinForm({ compact = false }: { compact?: boolean }) {
   const { vin, setVin } = useVinDraft();
@@ -100,6 +106,9 @@ function CheckResult({
   compact: boolean;
 }) {
   const found = check.categories.filter((c) => c.found);
+  // e.g. manufacturer service history: no free check, requested after purchase
+  const afterPurchase = check.categories.filter(isAfterPurchase);
+  const canBuy = check.anyDataFound || afterPurchase.length > 0;
   const vehicle = [
     check.vehicle.manufacturer,
     check.vehicle.model,
@@ -142,6 +151,27 @@ function CheckResult({
           haben.
         </p>
       )}
+      {afterPurchase.length ? (
+        <div className="mt-3 rounded bg-surface p-3">
+          <p className="flex items-center gap-2 text-xs font-bold text-brand">
+            <Clock size={14} aria-hidden /> Wird nach dem Kauf abgefragt
+          </p>
+          <ul className="mt-1.5 grid gap-1 sm:grid-cols-2">
+            {afterPurchase.map((c) => (
+              <li key={c.category} className="flex items-center gap-2">
+                <span className="inline-flex min-w-7 justify-center rounded border border-line px-1.5 py-0.5 text-xs font-bold text-muted">
+                  ?
+                </span>
+                {c.label}
+              </li>
+            ))}
+          </ul>
+          <p className="mt-2 text-xs text-muted">
+            Für diese Daten gibt es keine kostenlose Vorab-Prüfung. Ob Einträge
+            vorhanden sind, zeigt erst der Report.
+          </p>
+        </div>
+      ) : null}
       {check.cached ? (
         <p className="mt-3 flex items-start gap-2 text-xs text-muted">
           <Info size={14} className="mt-0.5 shrink-0" aria-hidden />
@@ -149,7 +179,7 @@ function CheckResult({
           {formatDate(check.cached.fetchedAt)}).
         </p>
       ) : null}
-      {check.anyDataFound ? (
+      {canBuy ? (
         <Link
           href={compact ? next : "#preise"}
           className="mt-4 inline-flex items-center gap-2 font-semibold text-brand underline"
