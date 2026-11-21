@@ -1,4 +1,36 @@
-import { socialLinks, type SocialNetwork } from "@/shared/config/social";
+"use client";
+import { useQuery } from "@tanstack/react-query";
+import { apiRequest, isApiConfigured } from "@/shared/api/client";
+import {
+  SOCIAL_LABELS,
+  defaultSocialLinks,
+  type SocialLink,
+  type SocialNetwork,
+} from "@/shared/config/social";
+
+const KNOWN = new Set(Object.keys(SOCIAL_LABELS));
+
+/** links managed in the admin panel (Settings → Social media) */
+const useSocialLinks = () =>
+  useQuery({
+    queryKey: ["site", "social"],
+    queryFn: ({ signal }) =>
+      apiRequest<{ social: SocialLink[] }>("/site", { signal }).then((d) =>
+        d.social.filter((l) => KNOWN.has(l.network)),
+      ),
+    enabled: isApiConfigured(),
+    staleTime: 5 * 60_000,
+    retry: 1,
+  });
+
+/** only http(s) links are rendered as links */
+const safeUrl = (url: string) => {
+  try {
+    return ["https:", "http:"].includes(new URL(url).protocol) ? url : "";
+  } catch {
+    return "";
+  }
+};
 
 /** brand icons (Simple Icons, CC0), 24×24 */
 const PATHS: Record<SocialNetwork, string> = {
@@ -14,8 +46,9 @@ const PATHS: Record<SocialNetwork, string> = {
 };
 
 /**
- * Social media icons as links (open in a new tab). Profiles without a URL in
- * shared/config/social.ts are shown the same way but do not navigate yet.
+ * Social media icons as links (open in a new tab). Networks, links and
+ * visibility come from the admin panel; icons without a link are shown but
+ * do not navigate.
  */
 export function SocialLinks({
   variant = "light",
@@ -29,12 +62,17 @@ export function SocialLinks({
     variant === "dark"
       ? "border-white/30 text-white hover:bg-white hover:text-brand"
       : "border-line text-brand hover:border-brand hover:bg-brand hover:text-white";
+  const { data } = useSocialLinks();
+  const links = data ?? defaultSocialLinks;
+  if (!links.length) return null;
   return (
     <ul
       aria-label="VINblick in sozialen Netzwerken"
       className={`flex items-center gap-2 ${className}`}
     >
-      {socialLinks.map(({ network, label, href }) => {
+      {links.map(({ network, url }) => {
+        const label = SOCIAL_LABELS[network];
+        const href = safeUrl(url);
         const icon = (
           <svg
             viewBox="0 0 24 24"
