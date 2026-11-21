@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { Menu, X, UserRound, ArrowRight } from "lucide-react";
 import { navigation } from "@/shared/config/navigation";
 import { ButtonLink } from "@/shared/ui/button";
+import { SocialLinks } from "@/shared/ui/social-links";
 export function Header() {
   const [openPath, setOpenPath] = useState<string | null>(null);
   const menuButton = useRef<HTMLButtonElement>(null);
@@ -102,6 +103,7 @@ export function Header() {
               {item.label}
             </Link>
           ))}
+          <SocialLinks className="mt-4 border-t border-line px-3 pt-4" />
         </nav>
       ) : null}
     </header>
