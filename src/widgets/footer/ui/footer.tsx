@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { UserRoundCheck } from "lucide-react";
 import { PaymentMethods } from "@/shared/ui/payment-methods";
+import { SocialLinks } from "@/shared/ui/social-links";
 
 const links = [
   ["VINblick", "/"],
@@ -23,6 +24,7 @@ export function Footer() {
           VINblick
         </Link>
         <PaymentMethods footer />
+        <SocialLinks variant="dark" />
         <nav
           aria-label="Footernavigation"
           className="flex flex-wrap items-center justify-center gap-x-2 gap-y-3 text-xs font-semibold text-white/85"
